@@ -10,3 +10,9 @@
   <li>наложение индексов на колонки</li>
   <li>триггеры для автоматизации некоторых процессов</li>
 </ul>
+<h4>Применяемые технологии:<h4>
+<ul>
+  <li>Oracle SQL Developer</li>
+  <li>Oracle Database 18c Express Edition</li>
+  <li>Облачное приложение ORACLE APEX</li>
+</ul
