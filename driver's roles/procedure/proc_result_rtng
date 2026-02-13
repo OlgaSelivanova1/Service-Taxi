@@ -1,0 +1,73 @@
+/*Обновление рейтинга водителю по заданному периоду*/
+CREATE OR REPLACE PROCEDURE proc_result_rtng(p_day IN NUMBER)
+IS
+TYPE collect_val IS RECORD(avg_rating NUMBER);
+TYPE t_table IS TABLE OF collect_val INDEX BY PLS_INTEGER;
+v_tbl_rating t_table;
+/*Обновление рейтинга по всем водителям*/
+CURSOR cursr4collect
+IS (SELECT round(avg(rating), 2)avg_rating
+FROM raiting_pass2driver
+WHERE TRUNC(time_create) >= (select (TRUNC(SYSDATE) - p_day)days_period from dual)
+GROUP BY id_driver
+);
+cntrow_resultbl NUMBER;
+new_raiting NUMBER;
+invalid_no_rowstbl EXCEPTION;
+ PRAGMA EXCEPTION_INIT (invalid_no_rowstbl, -60008);
+v_qnt_rowupdate NUMBER;
+v_newdate TIMESTAMP;
+v_avg_rating NUMBER;
+v_row_rtng NUMBER;
+v_driverID NUMBER;
+v_full_name VARCHAR2(155);
+BEGIN
+
+OPEN cursr4collect;
+LOOP
+FETCH cursr4collect BULK COLLECT INTO v_tbl_rating LIMIT 1000;
+  FORALL j IN 1..v_tbl_rating.COUNT
+    UPDATE driver_rating
+    SET rating = v_tbl_rating(j).avg_rating
+    WHERE id_driver = v_driverID;
+    COMMIT;
+  IF v_row_rtng = 1
+  THEN   
+ SELECT time_create
+INTO v_newdate
+FROM driver_rating
+WHERE id_driver = v_driverID;
+IF v_newdate <> systimestamp 
+THEN
+DBMS_OUTPUT.PUT_LINE('Ошибка записию Время или количество строк по каждому водителю превышает 1');
+ROLLBACK;
+ELSE
+    DBMS_OUTPUT.PUT_LINE('На время '||v_newdate||'изменения прошли успешно'||chr(10)||'Проверка количества строк по каждому водителю:'||v_qnt_rowupdate);
+   -- DBMS_OUTPUT.PUT_LINE('Вставлено строк в результитатирующую таблицу driver_rating: '||v_row_rtng ||' Водитель с ID:'||' '||v_driverID||' '||v_full_name||' Средний рейтинг = '||v_avg_rating);
+END IF;
+ END IF;
+FOR rec IN 1..v_tbl_rating.COUNT
+LOOP
+new_raiting := v_tbl_rating(rec).avg_rating;
+DBMS_OUTPUT.PUT_LINE('Рейтинг для водителя '||v_full_name||' Обновлен и равен '||new_raiting);
+END LOOP;
+EXIT WHEN cursr4collect%NOTFOUND;
+END LOOP;
+CLOSE cursr4collect;
+
+SELECT COUNT(*)
+INTO cntrow_resultbl
+FROM driver_rating;
+IF cntrow_resultbl = 0
+THEN
+    RAISE_APPLICATION_ERROR
+         (-60002,'Ошибка: таблица пуста' || cntrow_resultbl || ' строк');
+END IF;
+
+EXCEPTION
+WHEN OTHERS
+THEN
+dbms_output.put_line(SQLCODE);
+dbms_output.put_line(SQLERRM);
+DBMS_OUTPUT.put_line (DBMS_UTILITY.format_error_backtrace);
+END proc_result_rtng;
