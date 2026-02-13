@@ -1,0 +1,18 @@
+ALTER TABLE raiting_driver2pass
+ADD CONSTRAINT uk_only1order_1 UNIQUE (id_order);
+/
+ALTER TABLE passenger_rating
+ADD CONSTRAINT uk_only1passenger UNIQUE (id_passenger);
+/
+ALTER TABLE raiting_driver2pass
+ADD CONSTRAINT chk_minmax_rtng CHECK (rating BETWEEN 1 AND 5);
+/
+SELECT constraint_name, column_name
+FROM all_cons_columns
+WHERE constraint_name IN (
+    SELECT constraint_name
+    FROM all_constraints
+    WHERE table_name = 'driver_rating' -- Имя вашей таблицы в верхнем регистре
+      AND constraint_type = 'U' -- 'U' означает UNIQUE constraint
+)
+ORDER BY constraint_name, position;
