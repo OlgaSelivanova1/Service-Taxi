@@ -1,0 +1,30 @@
+CURSOR cur_period_tbl
+IS(SELECT DISTINCT(CASE WHEN prcnt_pay IS NULL THEN 0 ELSE prcnt_pay END)percent_driver
+        ,sum(sum_order) amount_trip
+        ,SUM(COALESCE(sum_pay_gas, 0))amount_gasoline
+        ,time_create
+        ,id_driver
+        ,full_name
+FROM(
+    SELECT percent_of_payment prcnt_pay
+         ,amount_to_paid sum_order
+         ,NULL sum_pay_gas
+         ,id_pay
+         ,TRUNC(payment.time_create, 'MM')time_create
+         ,trip.id_driver
+         ,(driver.FIRST_NAME||' '||LAST_NAME)full_name
+    FROM driver
+    JOIN passenger_order_trip trip
+    ON driver.id_driver = trip.id_driver
+    JOIN payment ON trip.id_order = payment.id_order
+    UNION
+    SELECT NULL,NULL,amount_to_paid sum_pay_gas
+           ,id_pay
+            ,TRUNC(payment.time_create, 'MM')time_create
+            ,ref_st.id_driver
+            ,(driver.FIRST_NAME||' '||LAST_NAME) full_name
+    FROM payment,refueling_station ref_st,driver
+    WHERE payment.id_pay = ref_st.id_payment AND ref_st.id_driver = driver.id_driver
+ )WHERE time_create = p_period AND sum_order IS NOT NULL
+GROUP BY prcnt_pay,time_create,id_driver,full_name
+);
