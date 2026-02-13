@@ -46,15 +46,20 @@
       <li>Бронирует автомобиль</li>
       <li>Снимает автомобиль с брони</li>
       <li>Назначается системой пассажиру</li>
+      <ul><li><h6>PROCEDURE insert_driver2order</h6></li></ul>
       <li>Проставляет оценку пассажиру</li>
       <li>Получает оценку от пассажира</li>
+      PROCEDURE PROC_driver_rating2+collect is record
+      <li>Получает средний рейтинг за определеное время</li>
+      PROCEDURE proc_result_rtng(p_day IN NUMBER)
     </ul>
   <li>Пассажир</li>
     <ul>
       <li>Создает заказ</li>
-          <h6>Реакция системы:
+          <h5>Реакция системы:</h5>
           <ul>
-          <li>Назначает водителя(INSERT- запись в таблице ORDERS(ID_DRIVER))</li>
+          <li><h6>Назначает водителя(INSERT- запись в таблице ORDERS(ID_DRIVER))</li>
+            PROCEDURE insert_driver2order
           <li>Определяет коэффициент для суммы оплаты</li>
            PROCEDURE p_koeff4Order          
           <li>Высчитывает дистанцию и время в пути</li>
@@ -65,11 +70,15 @@
           PROCEDURE Insert_2_way
         </ul></h6>
     <ul>   
-      <li>Снимает автомобиль с брони</li>
-      <li>Назначается системой пассажиру</li>
-      <li>Проставляет оценку пассажиру</li>
-      <li>Получает оценку от пассажира</li>
+      <li>Проставляет оценку водителю после завершения заказа </li>
+      status in ('trip_completed'->'canceled')
+      <li>Получает оценку от водителя</li>
+        proc_canceled_order
+      <li>Получает средний рейтинг за определеное время</li>
+        PROCEDURE update_rating_pass(p_day IN NUMBER)
     </ul>
   <li>Специалист-аналитик сервиса</li>
-</ul>
+      <li>Имеет возможность выгружать различного рода отчеты из Сервиса</li>
+          pkg_salary_drivers.func_salary_drivers(pipe function)
+          </ul>
 
