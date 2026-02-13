@@ -1,0 +1,119 @@
+create or replace procedure p_koeff4Order(p_order_id NUMBER,p_val_koeff OUT NUMBER)
+IS
+TYPE massiv IS RECORD ( begin_time NUMBER
+                        ,value_koeff NUMBER
+                        ,end_time NUMBER);
+TYPE result_value IS TABLE OF massiv INDEX BY PLS_INTEGER;
+v_result result_value;
+v_create_time_ord NUMBER;
+TYPE night_value IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
+v_time_night night_value;
+max_beg_time NUMBER;
+min_beg_time NUMBER;
+v2element NUMBER;
+i_index PLS_INTEGER;
+new_time_create NUMBER;
+v_begin_time NUMBER;
+v_end_time NUMBER;
+BEGIN
+
+SELECT  begin_time,value_koeff,end_time
+         BULK COLLECT INTO v_result
+FROM(
+        SELECT  to_number(to_char(EXTRACT(HOUR FROM begin_time)))begin_time
+                ,to_number(to_char(EXTRACT(HOUR FROM end_time)))end_time
+                ,value_koeff
+        FROM koeff_for_order
+        WHERE id_tariff = (SELECT id_tariff FROM passenger_order_trip WHERE ID_ORDER = p_order_id)
+);   
+    SELECT (CASE WHEN (to_number(to_char(time_create_order,'HH24'))) = 0 THEN 24 ELSE (to_number(to_char(time_create_order,'HH24'))) END)time_open_ord
+    INTO v_create_time_ord
+    FROM passenger_order_trip
+    WHERE ID_ORDER = p_order_id;
+--dbms_output.put_line('Время создания заказа'||' '||v_create_time_ord);
+BEGIN
+FOR r IN 1..v_result.COUNT
+LOOP
+/*Заполнение коллекции данными из курсора*/
+v_begin_time := v_result(r).begin_time;
+v_end_time := v_result(r).end_time;
+p_val_koeff :=v_result(r).value_koeff;
+--dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||v_create_time_ord);
+IF v_create_time_ord >= v_begin_time AND v_create_time_ord <= v_end_time
+    THEN 
+    v_begin_time := v_result(r).begin_time;
+    v_end_time := v_result(r).end_time;
+    p_val_koeff :=v_result(r).value_koeff;
+dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||v_create_time_ord);
+END IF;
+END LOOP;
+END;
+
+BEGIN
+/*Блок для ночного времени*/
+SELECT MAX(to_number(to_char(EXTRACT(HOUR FROM begin_time))) )
+      ,MIN(to_number(to_char(EXTRACT(HOUR FROM begin_time))) )
+INTO max_beg_time,min_beg_time
+FROM koeff_for_order;
+v_time_night:=night_value(1=> max_beg_time,2 => 24,3 => min_beg_time);
+v2element:=v_time_night(2);
+FOR search_n_time IN v_time_night(1)..v_time_night(2)
+LOOP
+v_time_night(4) := search_n_time;
+IF v_create_time_ord = v_time_night(4)
+THEN new_time_create := v_create_time_ord;
+dbms_output.put_line('Время найдено в массиве'||' v_time_night(4): '||new_time_create);
+END IF;
+END LOOP;
+--dbms_output.put_line(new_time_create);
+FOR search_n_time IN 1..v_time_night(3)
+LOOP
+v_time_night(5):=search_n_time;
+IF v_create_time_ord = v_time_night(5)
+THEN new_time_create := v_create_time_ord;
+dbms_output.put_line('Время найдено в массиве'||' v_time_night(5): '||new_time_create);
+END IF;
+END LOOP;
+FOR r IN 1..v_result.COUNT
+LOOP
+/*Заполнение коллекции данными из курсора*/
+v_begin_time := v_result(r).begin_time;
+v_end_time := v_result(r).end_time;
+p_val_koeff :=v_result(r).value_koeff;
+i_index:= v_result.LAST;
+--dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||v_create_time_ord);
+--dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+IF i_index IS NOT NULL THEN
+IF new_time_create >= v_begin_time AND new_time_create <= v2element
+THEN
+/*Поиск значений между последним элеменом коллекции и 24*/
+v_begin_time := v_result(i_index).begin_time;
+v_end_time := v_result(i_index).end_time;
+p_val_koeff :=v_result(i_index).value_koeff;
+--dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+/*Поиск значений между 24 и первым элеменотом коллекции*/
+ELSIF new_time_create < v_end_time AND new_time_create >= v2element
+THEN
+v_begin_time := v_result(i_index).begin_time;
+v_end_time := v_result(i_index).end_time;
+p_val_koeff :=v_result(i_index).value_koeff;
+ELSE
+RETURN;
+END IF;
+END IF;
+END LOOP;
+dbms_output.put_line(p_order_id||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+END;
+/*Обработка исключений*/
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+dbms_output.put_line(sqlcode);
+WHEN TOO_MANY_ROWS THEN
+dbms_output.put_line(sqlerrm);
+END;
+/
+DECLARE
+p_val_koeff NUMBER;
+BEGIN
+p_koeff4Order(1262,p_val_koeff);
+END;
