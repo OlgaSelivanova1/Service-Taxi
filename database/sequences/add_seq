@@ -1,0 +1,169 @@
+/*Создание sequence к таблице address*/
+CREATE SEQUENCE addr_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице car*/
+CREATE SEQUENCE car_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице city*/
+CREATE SEQUENCE city_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице country*/
+CREATE SEQUENCE country_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице currency*/
+CREATE SEQUENCE seq_currency_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице driver*/
+CREATE SEQUENCE seq_driver_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице driver_image*/
+CREATE SEQUENCE driver_img
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице driver_image*/
+CREATE SEQUENCE driver_img
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице order_information*/
+CREATE SEQUENCE order_id_infr
+MINVALUE 100
+MAXVALUE 99999999999
+START WITH 100
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице parking*/
+CREATE SEQUENCE parking_id
+MINVALUE 10
+MAXVALUE 99999999999
+START WITH 10
+INCREMENT BY 2
+CACHE 20;
+/
+/*Создание sequence к таблице passenger*/
+CREATE SEQUENCE seq_passenger_id
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице passenger_image*/
+CREATE SEQUENCE pass_img
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице payment*/
+CREATE SEQUENCE payment_ID
+MINVALUE 1000
+MAXVALUE 99999999999
+START WITH 1000
+INCREMENT BY 1000
+CACHE 20;
+/
+/*Создание sequence к таблице rate(тариф)*/
+CREATE SEQUENCE rate_ID
+MINVALUE 10
+MAXVALUE 99999999999
+START WITH 10
+INCREMENT BY 10
+CACHE 20;
+/
+/*Создание sequence к таблице ratyng_driver2pass(оценка водителя такси в отношении пассажира за поездку)*/
+CREATE SEQUENCE assessment_driver2pass
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице ratyng_driver2pass(оценка пассажира в отношении водителя такси за поездку)*/
+CREATE SEQUENCE assessment_pass2driver
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице refueling_station(заправка автомобиля)*/
+CREATE SEQUENCE refueling_ID
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+commit;
+/
+/*Создание sequence к таблице rent_car(информация об арендованной машине водителем такси)*/
+CREATE SEQUENCE seq_rent_ID
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице street(справочник улиц)*/
+CREATE SEQUENCE street_ID
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Создание sequence к таблице way(информация о совершенной поездке: адреса, дистанция)*/
+CREATE SEQUENCE way_ID
+MINVALUE 1
+MAXVALUE 99999999999
+START WITH 1
+INCREMENT BY 1
+CACHE 20;
+/
+/*Сиквенс для таблицы tariffs поле id_tariff*/
+CREATE SEQUENCE tariff_id
+MINVALUE 1000
+MAXVALUE 99999
+START WITH 1000
+INCREMENT BY 100
+CACHE 20;
