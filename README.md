@@ -38,42 +38,42 @@
       </ul></ul>
   <ul>
       <li>Коллекции</li>
+        <ul>
           <li>TYPE 'name_type_record' IS RECORD 
           <li>TYPE 'name_tbl_type' IS TABLE OF 'name_type_record' INDEX BY PLS_INTEGER</li>
-      с BULK COLLECT INTO</li>
+      с BULK COLLECT INTO</li></ul>
     </ul>
   </ul>
-<h4>Роли и их возможности<h4>
+<h5>Роли и их возможности</h5>
 <ul>
   <li>Водитель</li>
     <ul>
       <li>Бронирует автомобиль</li>
       <li>Снимает автомобиль с брони</li>
       <li>Назначается системой пассажиру</li>
-      <ul><li><h6>PROCEDURE insert_driver2order</h6></li></ul>
       <li>Проставляет оценку пассажиру</li>
-      <li>Получает оценку от пассажира</li>
-      PROCEDURE PROC_driver_rating2+collect is record
-      <li>Получает средний рейтинг за определеное время</li>
-      PROCEDURE proc_result_rtng(p_day IN NUMBER)
+      <li>Получает оценку от пассажира</li>     
+      <li>Получает средний рейтинг за определеное время</li>     
     </ul>
   <li>Пассажир</li>
     <ul>
       <li>Создает заказ</li>
-          <h5>Реакция системы:</h5>
-          <ul>
-          <li><h6>Назначает водителя(INSERT- запись в таблице ORDERS(ID_DRIVER))</li>
-            PROCEDURE insert_driver2order
+      <p>Реакция системы на заказ:
+   <ul>
+     <pre>
+          <li>Назначает водителя(INSERT- запись в таблице ORDERS(ID_DRIVER))</a></p></li>
+                PROCEDURE insert_driver2order
           <li>Определяет коэффициент для суммы оплаты</li>
-           PROCEDURE p_koeff4Order          
+               PROCEDURE p_koeff4Order          
           <li>Высчитывает дистанцию и время в пути</li>
-          PROCEDURE count_time_order
+              PROCEDURE count_time_order
           <li>Определяет итоговую сумму к оплате с учетом показателей</li>
-          FUNCTION func_amount2pay_order
+              FUNCTION func_amount2pay_order
           <li>Производит DDL операции для таблицы way (insert) c итоговой информацией о поездке</li>
-          PROCEDURE Insert_2_way
-        </ul></h6>
-    <ul>   
+              PROCEDURE Insert_2_way 
+     </pre>
+   </ul>
+    </p>
       <li>Проставляет оценку водителю после завершения заказа </li>
       status in ('trip_completed'->'canceled')
       <li>Получает оценку от водителя</li>
@@ -82,8 +82,10 @@
         PROCEDURE update_rating_pass(p_day IN NUMBER)
     </ul>
   <li>Специалист-аналитик сервиса</li>
+      <ul>
       <li>Имеет возможность выгружать различного рода отчеты из Сервиса</li>
           pkg_salary_drivers.func_salary_drivers(pipe function)
           </ul>
+    </ul>
     </p>
 
