@@ -1,3 +1,4 @@
+/*Водитель проставляет оценку Пассажиру*/
 CREATE OR REPLACE PROCEDURE p_driver2pass_rtng (p_id_order IN NUMBER,p_rating IN NUMBER)
 IS
 v_driver NUMBER;
