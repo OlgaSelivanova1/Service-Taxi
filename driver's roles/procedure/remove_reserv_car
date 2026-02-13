@@ -1,0 +1,85 @@
+/*Снятие с брони*/
+CREATE OR REPLACE PROCEDURE remove_reserv_car (p_id_car IN NUMBER
+                                               ,p_gas_mileage IN NUMBER
+                                               ,p_distance_car IN NUMBER)
+IS
+CURSOR c_remove_car
+IS
+(SELECT COUNT(id_car) OVER (PARTITION BY id_driver ORDER BY id_driver)cnt_car_yes
+ FROM rent_car
+ WHERE id_car in (select id_car from car where is_reserved='Yes')
+ AND id_car = p_id_car);
+v_car_count c_remove_car%ROWTYPE;
+BEGIN
+/*Способ "Цикл FOR c курсором"ю Результат:Машина 42 снята с брони
+    FOR loop_count IN c_remove_car
+    LOOP
+    CONTINUE WHEN c_remove_car%NOTFOUND;
+        IF loop_count.cnt_car_yes = 1
+            THEN
+                /*Изменение значения в таблице rent_car по входящему параметру ID машины(id_car)*/
+                /*Изменение происхоят по входящим параметрам p_gas_mileage,p_distance_car*/
+            /*    UPDATE rent_car
+                SET date_stop = sysdate
+                WHERE id_car = p_id_car;
+                UPDATE rent_car
+                SET gas_mileage = p_gas_mileage
+                WHERE id_car = p_id_car;
+                UPDATE rent_car
+                SET distance = p_distance_car
+                WHERE id_car = p_id_car;
+                /*Изменение значения в таблице CAR*/
+                /*В поле 'is_reserved' меняем статус машины на 'Yes'*/
+            /*   UPDATE car
+                SET is_reserved = 'No'
+                WHERE id_car = p_id_car;
+                COMMIT;
+            ELSE ROLLBACK;
+                DBMS_OUTPUT.PUT_LINE('Машина'||' '||p_id_car||' '||'не снята с брони');
+            END IF;
+                DBMS_OUTPUT.PUT_LINE('Машина'||' '||p_id_car||' '||'снята с брони');
+    END LOOP; */
+/*Способ №2: Извленение данных из курсора*/
+OPEN c_remove_car;
+LOOP
+FETCH c_remove_car INTO v_car_count;
+    IF c_remove_car%FOUND THEN
+        IF v_car_count.cnt_car_yes = 1
+          THEN
+            UPDATE rent_car
+            SET date_stop = sysdate
+            WHERE id_car = p_id_car;
+            
+            UPDATE rent_car
+            SET gas_mileage = p_gas_mileage
+            WHERE id_car = p_id_car;
+            UPDATE rent_car
+            SET distance = p_distance_car
+            WHERE id_car = p_id_car;
+                    
+            UPDATE car
+            SET is_reserved = 'No'
+            WHERE id_car = p_id_car;
+            COMMIT;
+        ELSE 
+             DBMS_OUTPUT.PUT_LINE('Машина'||' '||p_id_car||' '||'не снята с брони');
+            ROLLBACK;
+       END IF;
+   ELSIF c_remove_car%NOTFOUND THEN
+      DBMS_OUTPUT.PUT_LINE('Машина не найдена.Проверьте вводимое значение');
+   END IF;
+EXIT WHEN c_remove_car%NOTFOUND;
+DBMS_OUTPUT.PUT_LINE('Машина'||' '||p_id_car||' '||'снята с брони');
+END LOOP;
+CLOSE c_remove_car;
+/*Раздел исключений*/
+EXCEPTION
+WHEN NO_DATA_FOUND THEN 
+ DBMS_OUTPUT.PUT_LINE('Данные не найдены');
+WHEN OTHERS THEN 
+DBMS_OUTPUT.PUT_LINE(sqlerrm);
+END;
+/
+BEGIN
+remove_reserv_car(46,30,30);
+END;
