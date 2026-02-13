@@ -1,0 +1,46 @@
+/*Процедура заправки автомобиля*/
+CREATE OR REPLACE PROCEDURE proc_refuel_car ( p_id_car IN NUMBER
+                                             ,p_amount_pay IN NUMBER
+                                             ,p_currency_abbr IN VARCHAR2
+                                             ,p_type_pay IN VARCHAR2
+                                             ,p_amount_gasoline IN NUMBER
+                                             ,p_address IN NUMBER)
+ IS
+  CURSOR cur_search_car
+    IS (SELECT rent_car.id_car
+        ,id_driver
+        FROM rent_car
+        WHERE rent_car.id_car in (SELECT id_car FROM car WHERE car.is_reserved = 'Yes' AND car.id_car=p_id_car)
+       );
+v_cursor cur_search_car%ROWTYPE;
+BEGIN
+OPEN cur_search_car;
+LOOP
+FETCH cur_search_car INTO v_cursor;
+IF cur_search_car%NOTFOUND THEN
+ ROLLBACK;
+    ELSIF v_cursor.id_car = p_id_car
+     THEN
+        INSERT INTO payment(amount_to_paid,id_currency,type_pay)
+            VALUES(p_amount_pay,(SELECT id_currency FROM currency WHERE UPPER(abbreviation) = UPPER(p_currency_abbr)),p_type_pay);
+        INSERT INTO refueling_station (id_driver,id_car,id_payment,amount_of_gasoline,id_addr)
+            VALUES (v_cursor.id_driver,p_id_car
+                   ,(SELECT MAX(id_pay) FROM payment WHERE id_currency = (SELECT id_currency FROM currency WHERE UPPER(abbreviation) = UPPER(p_currency_abbr)))
+                   ,p_amount_gasoline,p_address);
+        COMMIT;
+        DBMS_OUTPUT.PUT_LINE(p_id_car||' '||p_amount_pay||' '||UPPER(p_currency_abbr)||' '||LOWER(p_type_pay)||' '||p_amount_gasoline||' '||p_address);
+END IF;
+EXIT WHEN cur_search_car%NOTFOUND;
+END LOOP;
+CLOSE cur_search_car;
+/*Раздел исключений*/
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+DBMS_OUTPUT.PUT_LINE('Данные не найдены');
+WHEN OTHERS THEN
+DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
+/
+BEGIN
+proc_refuel_car(388,123,'RUB','card',30,162);
+END;
