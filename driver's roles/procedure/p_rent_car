@@ -1,0 +1,54 @@
+CREATE OR REPLACE PROCEDURE p_rent_car(p_driverID in number, p_carID in number)
+IS
+CURSOR search_driver_car
+IS 
+/*Ищем водителя, который есть в базе*/
+/*Водитель не имеет забронированной машины*/
+/*Водитель может забронировать одну и ту же машину при условии статус машины 'No'*/
+/*В этом случае у него появиться еще одна запись(id машины,ID водителя)в таблице rent_car*/
+(SELECT id_driver
+FROM driver
+WHERE id_driver NOT IN 
+ (SELECT ID_DRIVER
+  FROM RENT_CAR
+  WHERE ID_CAR NOT IN 
+   (SELECT ID_CAR
+    FROM CAR 
+    WHERE IS_RESERVED<>'Yes'
+    )
+ )AND id_driver = p_driverID
+);
+v_start_date DATE:= sysdate;
+invalid_carID EXCEPTION;
+v_car_id NUMBER;
+BEGIN
+ FOR R IN search_driver_car
+  LOOP
+    CONTINUE WHEN R.id_driver <> p_driverID;
+    /*Водитель должен быть зарегистрированным в базе */
+    IF R.id_driver = p_driverID THEN
+        /*Условие для изменения статуса машины*/
+         INSERT INTO rent_car(id_driver,id_car,date_start)
+            VALUES(p_driverID,p_carID,v_start_date);
+         UPDATE car
+          SET is_reserved = 'Yes'
+            WHERE id_car = p_carID;
+      COMMIT;
+     END IF;
+ END LOOP;
+/*Поиск машины в базе для раздела исключений*/
+ SELECT COUNT(id_car)
+ INTO v_car_id
+ FROM car
+  WHERE id_car = p_carID;
+ IF v_car_id IS NULL   THEN 
+    RAISE invalid_carID;
+END IF;
+EXCEPTION
+WHEN invalid_carID THEN
+DBMS_OUTPUT.PUT_LINE('Машина не найдена. Проверьте вводимое значение');
+WHEN NO_DATA_FOUND THEN
+DBMS_OUTPUT.PUT_LINE('Проверьте вводимые значения');
+WHEN OTHERS THEN
+DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
