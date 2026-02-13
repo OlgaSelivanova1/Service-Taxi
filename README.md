@@ -1,5 +1,5 @@
-<h4>Материалы предназначены исключительно для презенации навыков  в области PL/SQL разработки  и построения аналитических запросов SQL в СУБД #Oracle<h4>
-<h4>Также демонстрируются навыки в работе с архитектурой БД:<h4>
+<h4>Материалы предназначены исключительно для презенации навыков  в области PL/SQL разработки  и построения аналитических запросов SQL в СУБД Oracle <h4>
+<h5>Также демонстрируются навыки в работе с архитектурой БД:</h5>
 <ul>
   <li>создание схемы</li>
   <li>разграничение прав доступа</li>
@@ -9,35 +9,40 @@
   <li>наложение индексов на колонки</li>
   <li>триггеры для автоматизации некоторых процессов</li>
 </ul>
-<h4>Применяемые технологии:<h4>
+<h5>Применяемые технологии:</h5>
 <ul>
   <li>Oracle SQL Developer</li>
   <li>Oracle Database 18c Express Edition</li>
   <li>Облачное приложение ORACLE APEX</li>
-</ul
-<h4>Инструменты создания приложения<h4>
+</ul>
+<h5>Инструменты создания приложения</h5>
 <ul>
   <li>Процедура</li>
   <li>Функция</li>
   <li>Триггер</li>
   <li>Пакет</li>
-  <h4>Вспомогательные:<h4>
+</ul>
+  <h5>Вспомогательные:</h5>
+  <ul>
     <li>SQL-запрос</li>
       <ul>
         <li>в составе процедур/функций</li>
         <li>аналитичексий для построения графиков и дашбродов</li>
-        </ul
+      </ul></ul>
+  <ul>
     <li>Курсоры</li>
       <ul>
         <li>явный</li>
         <li>неявный</li>
         <li>REF CURSOR</li>
-        </ul 
-      <li>Коллекции TYPE <name_type_record> IS RECORD 
-        TYPE <name_tbl_type> IS TABLE OF <name_type_record> INDEX BY PLS_INTEGER;
-        с BULK COLLECT INTO. 
-      </li>
-</ul
+      </ul></ul>
+  <ul>
+      <li>Коллекции</li>
+          <li>TYPE 'name_type_record' IS RECORD 
+          <li>TYPE 'name_tbl_type' IS TABLE OF 'name_type_record' INDEX BY PLS_INTEGER</li>
+      с BULK COLLECT INTO</li>
+    </ul>
+  </ul>
 <h4>Роли и их возможности<h4>
 <ul>
   <li>Водитель</li>
@@ -80,4 +85,5 @@
       <li>Имеет возможность выгружать различного рода отчеты из Сервиса</li>
           pkg_salary_drivers.func_salary_drivers(pipe function)
           </ul>
+    </p>
 
