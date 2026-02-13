@@ -1,0 +1,65 @@
+create or replace PROCEDURE Insert_2_way(p_way_order IN NUMBER
+                                        ,p_distance_sum IN NUMBER                                        
+                                        ,p_id_tariff IN NUMBER)
+IS
+v_order_id2 NUMBER;
+v_row_way_order NUMBER;
+v_val_koeff2 NUMBER;
+v_count_time NUMBER;
+v_amount2order NUMBER;
+v_average_driverSpeed NUMBER;
+v_order_id number;
+BEGIN
+SELECT pp.id_order,COUNT(way.id_order)cnt_order
+INTO v_order_id2,v_row_way_order
+FROM passenger_order_trip pp
+LEFT JOIN way
+on pp.id_order = way.id_order
+WHERE pp.id_order = p_way_order
+GROUP BY pp.id_order;
+
+IF v_row_way_order = 0
+THEN
+INSERT INTO way(distance,id_order)
+VALUES(p_distance_sum,v_order_id2);
+
+ELSIF v_row_way_order = 1 AND v_order_id2 = p_way_order
+     THEN     
+        /*Выводим коэффициент для номера заказа*/
+        p_koeff4Order(v_order_id2,v_val_koeff2);
+        dbms_output.put_line('Ваш коэффициент: '||' '||v_val_koeff2);
+        count_time_order (v_order_id2,v_count_time);
+        v_average_driverSpeed:= p_distance_sum/v_count_time;
+
+      IF  v_average_driverSpeed = 0 OR v_average_driverSpeed < 1
+        THEN
+            dbms_output.put_line('ДИСТАНЦИЯ СИЛЬНО ЗАНИЖЕНА ПО СРАВНЕНИЮ СО ВРЕМЕНЕМ В ПУТИ');
+
+    ELSE
+        UPDATE way
+        SET time_in_way = v_count_time
+           ,average_driver_speed = v_average_driverSpeed
+           ,pay_way = v_amount2order
+        WHERE id_order = p_way_order;
+        COMMIT;
+        dbms_output.put_line('Средняя скорость водителя: '||v_average_driverSpeed||' Время в пути в минутах: '||v_count_time||' Сумма к оплате: '||v_amount2order);
+        UPDATE way
+        SET TIME_IN_WAY = v_count_time
+        WHERE id_order = p_way_order;
+        COMMIT;
+    END IF;
+ELSIF v_row_way_order > 1 
+    THEN    ROLLBACK;
+END IF;
+dbms_output.put_line('JJJJ');
+EXCEPTION
+WHEN OTHERS
+THEN
+    DBMS_OUTPUT.PUT_LINE('В коде есть ошибки');
+     DBMS_OUTPUT.PUT_LINE(SQLERRM(-20000));
+END;
+/
+begin
+Insert_2_way(921,55,9000);
+end;
+
