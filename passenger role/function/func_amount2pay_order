@@ -1,0 +1,68 @@
+CREATE OR REPLACE FUNCTION func_amount2pay_order(f_p_id_order IN NUMBER, f_p_id_tariff IN NUMBER)
+                                                 RETURN NUMBER
+IS
+v_fixprce_minute NUMBER;
+v_amount_Drv2Pass NUMBER;
+v_pricee_addServce NUMBER;
+v_distance NUMBER;
+v_time_in_way NUMBER;
+v_val_koeff NUMBER;
+v_price_trff NUMBER;
+amount_2payOrder NUMBER;
+i NUMBER:=0;
+BEGIN
+/*Выводим коэффициент для номера заказа*/
+p_koeff4Order(f_p_id_order,v_val_koeff);
+count_time_order (f_p_id_order,v_time_in_way);
+
+SELECT fix_price_minute,pay_goto_pass
+INTO v_fixprce_minute
+     ,v_amount_Drv2Pass    
+FROM detalisation_price dtpr
+WHERE id_tarif = f_p_id_tariff;
+
+SELECT price
+INTO v_pricee_addServce
+FROM add_service
+WHERE id_service = 5;/*ПАРАМЕТР ГЛАВНОЙ ПРОЦЕДУРЫ*/
+
+
+/*PROCEDURE count_time_order*/
+
+SELECT distance
+INTO v_distance
+FROM way
+WHERE id_order = f_p_id_order;
+
+SELECT trf.price_tariff
+INTO v_price_trff
+FROM tariffs trf
+WHERE id_tariff = f_p_id_tariff;
+
+IF f_p_id_order IS NOT NULL
+THEN
+amount_2payOrder:= i+(((v_price_trff*v_distance) + (v_fixprce_minute*v_time_in_way)
+                    + v_amount_Drv2Pass + v_pricee_addServce)
+                    * v_val_koeff);
+/*Итоговая стоимость поездки без скидок = ((Цена за километр * Пройденное расстояние)+(Цена за минуту * Время в пути)+ Стоимость подачи+доп. услуги)*Коэффициент на конкретное время дня)*/
+IF v_pricee_addServce = 0
+THEN
+amount_2payOrder:=i+(((v_price_trff*v_distance) + (v_fixprce_minute*v_time_in_way)
+                        + v_amount_Drv2Pass) * v_val_koeff);
+--DBMS_OUTPUT.PUT_LINE('Сумма к оплате по заказу'||' '||f_p_id_order||' '||amount_2payOrder);
+ELSE NULL;
+END IF;
+DBMS_OUTPUT.PUT_LINE('Сумма к оплате по заказу'||' '||f_p_id_order||' :'||amount_2payOrder);
+END IF;
+RETURN amount_2payOrder;
+END;
+/
+DECLARE
+v_sumpay_ORDER NUMBER;
+--p_val_koeff number;
+--v_val_koeff number;
+BEGIN
+--p_koeff4Order(902,v_val_koeff);
+--v_val_koeff:=p_val_koeff;
+v_sumpay_ORDER:=func_amount2pay_order(902,11100);
+END;     
