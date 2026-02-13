@@ -84,8 +84,6 @@
   <li>Специалист-аналитик сервиса</li>
       <ul>
       <li>Имеет возможность выгружать различного рода отчеты из Сервиса</li>
-          pkg_salary_drivers.func_salary_drivers(pipe function)
           </ul>
     </ul>
     </p>
-
