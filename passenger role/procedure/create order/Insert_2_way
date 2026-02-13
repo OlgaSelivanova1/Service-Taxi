@@ -1,3 +1,4 @@
+/*ПЕРЕДЕЛАТЬ! НЕОБХОДИМ ПАКЕТ!*/
 create or replace PROCEDURE Insert_2_way(p_way_order IN NUMBER
                                         ,p_distance_sum IN NUMBER                                        
                                         ,p_id_tariff IN NUMBER)
