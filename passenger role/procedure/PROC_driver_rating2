@@ -1,0 +1,97 @@
+CREATE OR REPLACE PACKAGE rating_pgk_driver2
+IS
+TYPE rec_collect2 IS RECORD 
+                    (id_order NUMBER                    
+                    ,id_driver NUMBER
+                    ,id_passenger NUMBER
+                    ,STATUS VARCHAR2(25)
+                    ,full_name VARCHAR2(155)
+                    );
+TYPE tbl_collect1 IS TABLE OF rec_collect2 INDEX BY PLS_INTEGER;
+varbl_tbl1 tbl_collect1;
+v_full_name VARCHAR2(155);
+v_driverID NUMBER;
+v_row_rtng NUMBER;
+PROCEDURE PROC_driver_rating2(p_order IN NUMBER,p_val_rtng IN NUMBER,p_driver OUT NUMBER);
+END;
+/
+CREATE OR REPLACE PACKAGE BODY rating_pgk_driver2
+IS
+PROCEDURE PROC_driver_rating2(p_order IN NUMBER,p_val_rtng IN NUMBER,p_driver OUT NUMBER)
+IS
+CURSOR c_data
+IS (SELECT trp.id_order,trp.id_driver,trp.id_passenger,trp.status
+    ,(drv.first_name||' '||drv.last_name)full_name
+    FROM passenger_order_trip trp
+    JOIN driver drv
+    ON trp.id_driver = drv.id_driver
+    WHERE trp.id_order = p_order
+    AND status = 'canceled'
+    AND trp.id_driver IS NOT NULL
+);
+BEGIN
+
+OPEN c_data;
+  LOOP
+     FETCH c_data BULK COLLECT INTO varbl_tbl1;
+     /*Применяем FORALL для DML операций и SELECT запросов*/
+     FORALL i IN 1..varbl_tbl1.COUNT
+    INSERT INTO raiting_pass2driver(id_pass,id_driver,id_order,rating)
+     VALUES (varbl_tbl1(i).id_passenger,varbl_tbl1(i).id_driver,p_order,p_val_rtng)
+     RETURNING varbl_tbl1(i).id_driver INTO v_driverID;
+     p_driver := v_driverID;
+     DBMS_OUTPUT.PUT_LINE(p_driver);
+    /*Применяем для вывода фио водителя*/
+      FOR rec IN 1..varbl_tbl1.COUNT
+      LOOP
+      v_full_name := varbl_tbl1(rec).full_name;
+      END LOOP;
+
+ /*Для поиска среднего рейтинга по всем заказам водителя*/
+ /*Необходимо для процедуры обновления рейтинга*/ 
+ EXIT WHEN c_data%NOTFOUND;
+ END LOOP;
+CLOSE c_data;
+DBMS_OUTPUT.PUT_LINE('По заказу '||p_order||' Для водителя '||v_full_name||' Проставлена оценка: '||p_val_rtng);
+EXCEPTION
+WHEN DUP_VAL_ON_INDEX 
+THEN
+ DBMS_OUTPUT.PUT_LINE('Попытка создать дубликат для заказа с ID:'||' '||p_order);
+WHEN VALUE_ERROR
+THEN
+ DBMS_OUTPUT.PUT_LINE('Попытка преобразования,усечения,или ограничения числовых или символьных данных');
+WHEN OTHERS
+THEN
+dbms_output.put_line(SQLCODE);
+ dbms_output.put_line(SQLERRM);
+ DBMS_OUTPUT.put_line (DBMS_UTILITY.format_error_backtrace);
+END PROC_driver_rating2;
+END rating_pgk_driver2;
+/
+DECLARE
+p_driver NUMBER;
+v_row_rtng NUMBER;
+begin
+rating_pgk_driver2.PROC_driver_rating2(921,3,p_driver);
+DBMS_OUTPUT.PUT_LINE('Проверка водителя: '||p_driver);
+SELECT COUNT(*)cnt_row
+INTO v_row_rtng
+FROM driver_rating
+WHERE  id_driver = p_driver;
+DBMS_OUTPUT.PUT_LINE('Проверка наличия водителя в главной таблице driver_rating: '||v_row_rtng);
+IF v_row_rtng = 0
+THEN
+ INSERT INTO driver_rating(id_driver,rating)
+     VALUES (p_driver,(SELECT rating 
+                       FROM raiting_pass2driver
+                       WHERE time_create = 
+                         (SELECT MIN(time_create) 
+                          FROM raiting_pass2driver rtng_drv 
+                             WHERE rtng_drv.id_driver = p_driver)
+                          )
+                        );
+ COMMIT;
+ELSE
+    NULL;
+END IF;
+end;
