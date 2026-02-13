@@ -1,0 +1,40 @@
+CREATE OR REPLACE PROCEDURE count_time_order (p_IDorder_time IN NUMBER,p_count_time OUT NUMBER)
+IS
+    v_hour NUMBER;
+    v_minute NUMBER;
+    v_sum_time NUMBER;
+    v_row_way_order NUMBER;
+    v_avg_speed NUMBER;
+BEGIN
+SELECT hour_in_way,mm_in_way,sum_hour
+INTO v_hour,v_minute,v_sum_time
+FROM
+    (SELECT to_number(to_char(extract(day from(dd*24)))) hour_in_way
+                ,to_number(to_char(extract(day from (dd*24*60)))) mm_in_way--подаставляем в формулу
+                ,to_number(to_char(extract(day from(dd*24*60*60)))) si_in_way
+                ,CEIL(to_number(to_char(extract(day from (dd*24*60))))
+                 /60)sum_hour                
+    FROM(SELECT (MAX(CASE WHEN id_order = p_IDorder_time
+                          THEN time_create 
+                        END) - 
+                     MIN(CASE WHEN id_order = p_IDorder_time
+                        THEN time_create
+                     END)
+                     )dd
+        FROM point_way
+     )x );
+p_count_time:=v_minute;
+
+   -- DBMS_OUTPUT.PUT_LINE(p_IDorder_time||' '||p_count_time||' '||CHR(10)||' Проверка на количество строк в way'||v_row_way_order);
+   DBMS_OUTPUT.PUT_LINE('Общее время в пути: '||''||p_count_time||' '||'По заказу: '||''||p_IDorder_time);
+EXCEPTION
+WHEN NO_DATA_FOUND
+THEN
+RETURN;
+END;
+/
+DECLARE
+p_count_time NUMBER;
+BEGIN
+count_time_order (1400,p_count_time);
+END;
