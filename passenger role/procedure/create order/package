@@ -1,1 +1,404 @@
+create or replace PACKAGE pkg_create_order IS
+    -- Переменная пакета для принятия и передачи номера заказа"
+    pkg_v_orderID NUMBER;
+    pkg_val_koeff NUMBER;
+    pkg_time_inway NUMBER;
+    pkg_distance NUMBER;
+    pkg_sum2pay NUMBER;
+    /*Создание заказа*/
+    PROCEDURE CREATE_ORDER_PASSENGER( p_passenger IN NUMBER
+                                                    ,p_order_id OUT NUMBER
+                                                    ,p_start_point IN NUMBER
+                                                    ,p_end_point IN NUMBER
+                                                    ,p_add_point IN  NUMBER
+                                                    ,p_distance_qnt IN NUMBER
+                                                    ,p_AddService_id IN NUMBER
+                                                    ,p_id_tariff IN VARCHAR2
+                                                    );
+/*Поиск коэффициента по дате и времени заказа*/
+PROCEDURE p_koeff4Order(p_order_id NUMBER,p_val_koeff OUT NUMBER);
+PROCEDURE count_time_order (p_IDorder_time IN NUMBER,p_count_time OUT NUMBER);
+/*Сумма к оплате по заказу*/
+FUNCTION func_amount2pay_order(f_p_id_order IN NUMBER
+                              ,f_p_id_tariff IN NUMBER)RETURN NUMBER;
+/*DDL операции для таблицы way с итоговой информацией*/ 
+PROCEDURE Insert_2_way(p_way_order IN NUMBER);
+END pkg_create_order;
+/
+CREATE OR REPLACE PACKAGE BODY pkg_create_order IS
 
+PROCEDURE CREATE_ORDER_PASSENGER( p_passenger IN NUMBER
+                                                    ,p_order_id OUT NUMBER
+                                                    ,p_start_point IN NUMBER
+                                                    ,p_end_point IN NUMBER
+                                                    ,p_add_point IN  NUMBER
+                                                    ,p_distance_qnt IN NUMBER
+                                                    ,p_AddService_id IN NUMBER
+                                                    ,p_id_tariff IN VARCHAR2
+                                                    )
+IS
+v_start_addr NUMBER;
+v_add_point NUMBER;
+v_end_addr NUMBER;
+CURSOR is_found_psngr
+IS(SELECT id_passenger,qnt_order,status
+FROM(
+    SELECT pss_tbl.id_passenger,qnt_order,status
+    FROM PASSENGER pss_tbl
+    LEFT JOIN
+    (SELECT COUNT(id_order)qnt_order, id_passenger,time_create_order,status
+    FROM passenger_order_trip
+    WHERE status = 'canceled'
+    AND time_create_order IN (SELECT max(time_create_order)FROM passenger_order_trip GROUP BY id_passenger)
+    GROUP BY id_passenger,time_create_order,status
+    UNION
+    SELECT COUNT(id_order), id_passenger,time_create_order,status
+    FROM passenger_order_trip
+    WHERE status <> 'canceled'
+    AND time_create_order IN (SELECT max(time_create_order)FROM passenger_order_trip GROUP BY id_passenger)
+    GROUP BY id_passenger,time_create_order,status
+    )tbl2
+    ON pss_tbl.id_passenger = tbl2.id_passenger
+    WHERE (status = 'canceled' OR tbl2.id_passenger IS NULL) OR status = 'search_driver'
+    )
+WHERE id_passenger = p_passenger);
+v_cnt_trueOrder NUMBER;
+v_order_id NUMBER;
+v_cnt_point NUMBER;
+v_address VARCHAR(155);
+v_id_order NUMBER;
+v_row_way_order NUMBER;
+BEGIN
+FOR rec_pass IN is_found_psngr
+LOOP
+IF rec_pass.id_passenger != p_passenger
+THEN 
+    DBMS_OUTPUT.PUT_LINE('Отказано в создании заказа');
+ELSIF  rec_pass.status = 'canceled' AND rec_pass.id_passenger = p_passenger
+    OR rec_pass.status IS NULL
+THEN 
+INSERT INTO passenger_order_trip(id_passenger,time_create_order,status,id_tariff,id_add_service)
+        VALUES (p_passenger,SYSTIMESTAMP,'search_driver',p_id_tariff,p_AddService_id);
+COMMIT;
+END IF;
+EXIT WHEN rec_pass.qnt_order = 1;
+END LOOP;
+
+            SELECT COUNT(*),id_order
+            INTO v_cnt_trueOrder,pkg_v_orderID
+            FROM passenger_order_trip
+            WHERE id_passenger = p_passenger
+            AND status = 'search_driver'
+            GROUP BY id_order
+            HAVING COUNT(*) = 1;
+p_order_id:= pkg_v_orderID;
+SELECT pp.id_order,COUNT(way.id_order)cnt_order
+INTO pkg_v_orderID,v_row_way_order
+FROM passenger_order_trip pp
+LEFT JOIN way
+on pp.id_order = way.id_order
+WHERE pp.id_order = pkg_v_orderID
+GROUP BY pp.id_order;
+
+IF v_row_way_order = 0
+THEN
+INSERT INTO way(distance,id_order)
+VALUES(p_distance_qnt,pkg_v_orderID);
+COMMIT;
+END IF;
+
+            SELECT distance
+            INTO pkg_distance
+            FROM way
+            WHERE id_order = pkg_v_orderID;
+
+IF v_cnt_trueOrder = 1
+THEN
+    IF p_order_id = pkg_v_orderID THEN
+    proc_addrgroup_city$country(p_start_point,v_address);
+    INSERT INTO point_way(id_order,point_addr_start)
+    VALUES(pkg_v_orderID,p_start_point);
+    COMMIT;
+dbms_output.put_line('Добавлен адрес отправления'||' '||v_address);
+proc_addrgroup_city$country(p_end_point,v_address);
+    UPDATE point_way
+    SET point_addr_end = p_end_point
+    WHERE id_order = pkg_v_orderID;
+    COMMIT;
+dbms_output.put_line('Добавлен конечный адрес'||' '||v_address);
+ELSE
+    DBMS_OUTPUT.PUT_LINE('Проверьте вводимые значения адресов'||' '||v_address);
+    NULL;
+END IF;
+ SELECT COUNT(id_point)
+    INTO v_cnt_point
+    FROM point_way
+    WHERE id_order = pkg_v_orderID;
+
+IF  v_cnt_point <= 4 THEN
+proc_addrgroup_city$country(p_add_point,v_address);
+    UPDATE point_way
+    SET point_addr_start = p_add_point
+    WHERE id_order = pkg_v_orderID;
+    COMMIT;
+dbms_output.put_line('Добавлена точка остановки'||' '||v_address);
+ELSE NULL;
+END IF;   
+END IF;
+EXCEPTION
+    WHEN NO_DATA_FOUND
+    THEN
+    DBMS_OUTPUT.PUT_LINE('Ошибка:'||''||chr(10)||''||SQLCODE);
+    DBMS_OUTPUT.PUT_LINE('Ошибка:'||''||chr(10)||''||SQLERRM);
+  WHEN OTHERS THEN
+  DBMS_OUTPUT.PUT_LINE('Ошибка:'||''||chr(10)||''||SQLERRM);
+ROLLBACK;
+RAISE;
+END;
+
+procedure p_koeff4Order(p_order_id NUMBER,p_val_koeff OUT NUMBER)
+IS
+TYPE massiv IS RECORD ( begin_time NUMBER
+                        ,value_koeff NUMBER
+                        ,end_time NUMBER);
+TYPE result_value IS TABLE OF massiv INDEX BY PLS_INTEGER;
+v_result result_value;
+v_create_time_ord NUMBER;
+TYPE night_value IS TABLE OF NUMBER INDEX BY PLS_INTEGER;
+v_time_night night_value;
+max_beg_time NUMBER;
+min_beg_time NUMBER;
+v2element NUMBER;
+i_index PLS_INTEGER;
+new_time_create NUMBER;
+v_begin_time NUMBER;
+v_end_time NUMBER;
+BEGIN
+
+SELECT  begin_time,value_koeff,end_time
+         BULK COLLECT INTO v_result
+FROM(
+        SELECT  to_number(to_char(EXTRACT(HOUR FROM begin_time)))begin_time
+                ,to_number(to_char(EXTRACT(HOUR FROM end_time)))end_time
+                ,value_koeff
+        FROM koeff_for_order
+        WHERE id_tariff = (SELECT id_tariff FROM passenger_order_trip WHERE ID_ORDER = pkg_v_orderID)
+);   
+    SELECT (CASE WHEN (to_number(to_char(time_create_order,'HH24'))) = 0 THEN 24 ELSE (to_number(to_char(time_create_order,'HH24'))) END)time_open_ord
+    INTO v_create_time_ord
+    FROM passenger_order_trip
+    WHERE ID_ORDER = pkg_v_orderID;
+--dbms_output.put_line('Время создания заказа'||' '||v_create_time_ord);
+BEGIN
+FOR r IN 1..v_result.COUNT
+LOOP
+/*Заполнение коллекции данными из курсора*/
+v_begin_time := v_result(r).begin_time;
+v_end_time := v_result(r).end_time;
+p_val_koeff :=v_result(r).value_koeff;
+--dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||v_create_time_ord);
+IF v_create_time_ord >= v_begin_time AND v_create_time_ord <= v_end_time
+    THEN 
+    v_begin_time := v_result(r).begin_time;
+    v_end_time := v_result(r).end_time;
+    p_val_koeff :=v_result(r).value_koeff;
+    pkg_val_koeff := p_val_koeff;
+dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||pkg_val_koeff||' На время:='||v_create_time_ord);
+END IF;
+END LOOP;
+END;
+
+BEGIN
+/*Блок для ночного времени*/
+SELECT MAX(to_number(to_char(EXTRACT(HOUR FROM begin_time))) )
+      ,MIN(to_number(to_char(EXTRACT(HOUR FROM begin_time))) )
+INTO max_beg_time,min_beg_time
+FROM koeff_for_order;
+v_time_night:=night_value(1=> max_beg_time,2 => 24,3 => min_beg_time);
+v2element:=v_time_night(2);
+FOR search_n_time IN v_time_night(1)..v_time_night(2)
+LOOP
+v_time_night(4) := search_n_time;
+IF v_create_time_ord = v_time_night(4)
+THEN new_time_create := v_create_time_ord;
+dbms_output.put_line('Время найдено в массиве'||' v_time_night(4): '||new_time_create);
+END IF;
+END LOOP;
+--dbms_output.put_line(new_time_create);
+FOR search_n_time IN 1..v_time_night(3)
+LOOP
+v_time_night(5):=search_n_time;
+IF v_create_time_ord = v_time_night(5)
+THEN new_time_create := v_create_time_ord;
+dbms_output.put_line('Время найдено в массиве'||' v_time_night(5): '||new_time_create);
+END IF;
+END LOOP;
+FOR r IN 1..v_result.COUNT
+LOOP
+/*Заполнение коллекции данными из курсора*/
+v_begin_time := v_result(r).begin_time;
+v_end_time := v_result(r).end_time;
+p_val_koeff :=v_result(r).value_koeff;
+i_index:= v_result.LAST;
+--dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||v_create_time_ord);
+--dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+IF i_index IS NOT NULL THEN
+IF new_time_create >= v_begin_time AND new_time_create <= v2element
+THEN
+/*Поиск значений между последним элеменом коллекции и 24*/
+v_begin_time := v_result(i_index).begin_time;
+v_end_time := v_result(i_index).end_time;
+p_val_koeff :=v_result(i_index).value_koeff;
+pkg_val_koeff := p_val_koeff;
+--dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+/*Поиск значений между 24 и первым элеменотом коллекции*/
+ELSIF new_time_create < v_end_time AND new_time_create >= v2element
+THEN
+v_begin_time := v_result(i_index).begin_time;
+v_end_time := v_result(i_index).end_time;
+p_val_koeff :=v_result(i_index).value_koeff;
+pkg_val_koeff := p_val_koeff;
+ELSE
+RETURN;
+END IF;
+END IF;
+END LOOP;
+dbms_output.put_line(pkg_v_orderID||' '||v_begin_time||' '||v_end_time||' Коэффициент:= '||p_val_koeff||' На время:='||new_time_create);
+END;
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+dbms_output.put_line(sqlcode);
+WHEN TOO_MANY_ROWS THEN
+dbms_output.put_line(sqlerrm);
+END;
+
+PROCEDURE count_time_order (p_IDorder_time IN NUMBER,p_count_time OUT NUMBER)
+IS
+    v_hour NUMBER;
+    v_minute NUMBER;
+    v_sum_time NUMBER;
+    v_row_way_order NUMBER;
+    v_avg_speed NUMBER;
+BEGIN
+SELECT hour_in_way,mm_in_way,sum_hour
+INTO v_hour,v_minute,v_sum_time
+FROM
+    (SELECT to_number(to_char(extract(day from(dd*24)))) hour_in_way
+                ,to_number(to_char(extract(day from (dd*24*60)))) mm_in_way--подаставляем в формулу
+                ,to_number(to_char(extract(day from(dd*24*60*60)))) si_in_way
+                ,CEIL(to_number(to_char(extract(day from (dd*24*60))))
+                 /60)sum_hour                
+    FROM(SELECT (MAX(CASE WHEN id_order = pkg_v_orderID
+                          THEN time_create 
+                        END) - 
+                     MIN(CASE WHEN id_order = pkg_v_orderID
+                        THEN time_create
+                     END)
+                     )dd
+        FROM point_way
+     )x );
+p_count_time:=v_minute;
+pkg_time_inway := p_count_time;
+
+   -- DBMS_OUTPUT.PUT_LINE(pkg_v_orderID||' '||p_count_time||' '||CHR(10)||' Проверка на количество строк в way'||v_row_way_order);
+   DBMS_OUTPUT.PUT_LINE('Общее время в пути: '||''||pkg_time_inway||' '||'По заказу: '||''||pkg_v_orderID);
+EXCEPTION
+WHEN NO_DATA_FOUND
+THEN
+RETURN;
+END;
+
+FUNCTION func_amount2pay_order(f_p_id_order NUMBER, f_p_id_tariff IN NUMBER)
+                                                 RETURN NUMBER
+IS
+v_fixprce_minute NUMBER;
+v_amount_Drv2Pass NUMBER;
+v_pricee_addServce NUMBER;
+v_price_trff NUMBER;
+i NUMBER:=0;
+BEGIN
+/*Выводим коэффициент для номера заказа*/
+SELECT fix_price_minute,pay_goto_pass
+INTO v_fixprce_minute
+     ,v_amount_Drv2Pass    
+FROM detalisation_price dtpr
+WHERE id_tarif = f_p_id_tariff;
+SELECT price
+INTO v_pricee_addServce
+FROM add_service
+WHERE id_service = 5;/*ПАРАМЕТР ГЛАВНОЙ ПРОЦЕДУРЫ*/
+
+/*PROCEDURE count_time_order*/
+
+SELECT trf.price_tariff
+INTO v_price_trff
+FROM tariffs trf
+WHERE id_tariff = f_p_id_tariff;
+
+IF pkg_v_orderID IS NOT NULL
+THEN
+pkg_sum2pay:= i+(((v_price_trff*pkg_distance) + (v_fixprce_minute*pkg_time_inway)
+                    + v_amount_Drv2Pass + v_pricee_addServce)
+                    * pkg_val_koeff);
+
+/*Итоговая стоимость поездки без скидок = ((Цена за километр * Пройденное расстояние)+(Цена за минуту * Время в пути)+ Стоимость подачи+доп. услуги)*Коэффициент на конкретное время дня)*/
+IF v_pricee_addServce = 0
+THEN
+pkg_sum2pay:=i+(((v_price_trff*pkg_distance) + (v_fixprce_minute*pkg_time_inway)
+                        + v_amount_Drv2Pass) * pkg_val_koeff);
+DBMS_OUTPUT.PUT_LINE('Сумма к оплате по заказу'||' '||f_p_id_order||' '||pkg_sum2pay);
+ELSE NULL;
+END IF;
+DBMS_OUTPUT.PUT_LINE('Сумма к оплате по заказу'||' '||pkg_v_orderID||' :'||pkg_sum2pay);
+END IF;
+RETURN pkg_sum2pay;
+END;
+
+PROCEDURE Insert_2_way(p_way_order IN NUMBER)
+IS
+v_row_way_order NUMBER;
+v_average_driverSpeed NUMBER;
+
+BEGIN
+SELECT COUNT(id_order) INTO v_row_way_order FROM way WHERE id_order = pkg_v_orderID;
+IF v_row_way_order = 1 AND pkg_v_orderID = p_way_order
+     THEN    
+        v_average_driverSpeed:= pkg_distance/pkg_time_inway;
+        UPDATE way
+        SET time_in_way = pkg_time_inway
+           ,average_driver_speed = v_average_driverSpeed
+           ,pay_way = pkg_sum2pay
+        WHERE id_order = pkg_v_orderID;
+        COMMIT;
+       dbms_output.put_line('Средняя скорость водителя: '||0||ROUND(v_average_driverSpeed,2)||' Время в пути в минутах: '||pkg_time_inway||' Сумма к оплате: '||pkg_sum2pay); 
+      ELSIF  v_average_driverSpeed = 0 OR v_average_driverSpeed < 1
+        THEN
+            dbms_output.put_line('Средняя скорость водителя: '||ROUND(v_average_driverSpeed,2)||' Время в пути в минутах: '||pkg_time_inway||' Сумма к оплате: '||pkg_sum2pay); 
+            dbms_output.put_line('ДИСТАНЦИЯ СИЛЬНО ЗАНИЖЕНА ПО СРАВНЕНИЮ СО ВРЕМЕНЕМ В ПУТИ');
+        NULL;
+ELSIF v_row_way_order > 1 
+    THEN 
+        ROLLBACK;
+END IF;
+
+END;
+END pkg_create_order;
+/
+DECLARE
+p_order_id NUMBER;
+v_pass_name VARCHAR(50);
+p_val_koeff NUMBER;
+p_count_time NUMBER;
+v_sumamount NUMBER;
+BEGIN
+pkg_create_order.CREATE_ORDER_PASSENGER(119,p_order_id,182,186,185,75,5,11100);
+pkg_create_order.p_koeff4Order(p_order_id,p_val_koeff);
+pkg_create_order.count_time_order(p_order_id,p_count_time);
+v_sumamount := pkg_create_order.func_amount2pay_order(p_order_id,11100);
+pkg_create_order.Insert_2_way(p_order_id);
+SELECT (first_name||' '||last_name) full_name
+INTO v_pass_name
+FROM passenger
+WHERE id_passenger = 118;
+dbms_output.put_line('Для клиента '||''||v_pass_name||' создан заказ'||' '||p_order_id);
+END;
