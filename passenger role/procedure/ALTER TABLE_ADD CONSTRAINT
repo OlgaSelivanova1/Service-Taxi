@@ -1,0 +1,8 @@
+ALTER TABLE raiting_pass2driver
+ADD CONSTRAINT chck_minmax_rtng CHECK (rating BETWEEN 1 AND 5);
+/
+ALTER TABLE raiting_pass2driver
+ADD CONSTRAINT uniq_order UNIQUE (id_order);
+/
+alter table driver_rating
+ADD CONSTRAINT uniq_keys UNIQUE (id_driver,rating);
