@@ -32,7 +32,12 @@
       <ul>
         <li>явный</li>
         <li>неявный</li>
-        </ul          
+        <li>REF CURSOR</li>
+        </ul 
+      <li>Коллекции TYPE <name_type_record> IS RECORD 
+        TYPE <name_tbl_type> IS TABLE OF <name_type_record> INDEX BY PLS_INTEGER;
+        с BULK COLLECT INTO. 
+      </li>
 </ul
 <h4>Роли и их возможности<h4>
 <ul>
@@ -45,5 +50,26 @@
       <li>Получает оценку от пассажира</li>
     </ul>
   <li>Пассажир</li>
+    <ul>
+      <li>Создает заказ</li>
+          <h6>Реакция системы:
+          <ul>
+          <li>Назначает водителя(INSERT- запись в таблице ORDERS(ID_DRIVER))</li>
+          <li>Определяет коэффициент для суммы оплаты</li>
+           PROCEDURE p_koeff4Order          
+          <li>Высчитывает дистанцию и время в пути</li>
+          PROCEDURE count_time_order
+          <li>Определяет итоговую сумму к оплате с учетом показателей</li>
+          FUNCTION func_amount2pay_order
+          <li>Производит DDL операции для таблицы way (insert) c итоговой информацией о поездке</li>
+          PROCEDURE Insert_2_way
+        </ul></h6>
+    <ul>   
+      <li>Снимает автомобиль с брони</li>
+      <li>Назначается системой пассажиру</li>
+      <li>Проставляет оценку пассажиру</li>
+      <li>Получает оценку от пассажира</li>
+    </ul>
   <li>Специалист-аналитик сервиса</li>
 </ul>
+
