@@ -1,0 +1,95 @@
+CREATE OR REPLACE PROCEDURE p_driver2pass_rtng (p_id_order IN NUMBER,p_rating IN NUMBER)
+IS
+v_driver NUMBER;
+v_passenger NUMBER;
+status_order passenger_order_trip.status%type;
+v_count_order NUMBER;
+order_no_close EXCEPTION;
+PRAGMA EXCEPTION_INIT (order_no_close, -20006);
+rating_value EXCEPTION;
+PRAGMA EXCEPTION_INIT (rating_value, -20005);
+v_time_create_order TIMESTAMP;
+BEGIN
+SELECT id_driver,id_passenger,status
+INTO v_driver,v_passenger,status_order
+FROM passenger_order_trip
+WHERE id_order = p_id_order;
+    IF status_order = 'canceled'
+    THEN       
+        IF p_rating <=5 AND p_rating >= 1
+     THEN
+        INSERT INTO raiting_driver2pass(id_pass,id_driver,id_order,rating)
+        VALUES(v_passenger,v_driver,p_id_order,p_rating);
+        COMMIT;
+    ELSE
+         RAISE_APPLICATION_ERROR(-20005,'Ваш рейтинг ' || p_rating || ' вне диапазона');
+         
+    END IF;
+    ELSE
+         RAISE_APPLICATION_ERROR(-20006,'Заказ ' || p_id_order || ' не закрыт');
+    ROLLBACK;
+        dbms_output.put_line('Рейтинг вне диапазона');
+    END IF;
+   
+/*Хоть и поставлен уникальный ключ*/
+/*Создадим проверку количества строк*/
+SELECT COUNT(id_order)
+INTO v_count_order
+FROM raiting_driver2pass
+WHERE id_order = p_id_order
+GROUP BY id_order;
+dbms_output.put_line(v_count_order);
+IF v_count_order >= 2
+THEN 
+    dbms_output.put_line(p_id_order||' '||'Уже существует запись');
+    DELETE FROM raiting_driver2pass
+    WHERE time_create NOT IN (SELECT MIN(time_create) FROM raiting_driver2pass);
+    COMMIT;
+ELSE
+     /*При успешной обработке*/
+        INSERT INTO passenger_rating(id_passenger,rating)
+        SELECT id_pass,rating
+        FROM raiting_driver2pass
+        WHERE id_pass = v_passenger AND rating = p_rating;
+        COMMIT;
+END IF;
+dbms_output.put_line('По заказу ID = '||p_id_order||' пассажиру; '||v_passenger||' Проставлен рейтинг: '||v_driver);
+
+EXCEPTION
+WHEN DUP_VAL_ON_INDEX 
+THEN
+dbms_output.put_line('По заказу ID = '||p_id_order||' '||'уже проставлен рейтинг: '||p_rating||' '||CHR(10)||''||'Изменения не возможны');
+WHEN NO_DATA_FOUND
+THEN
+dbms_output.put_line('Заказ ID = '||p_id_order||' '||'Не найден в системе');
+ WHEN order_no_close
+ THEN
+ SELECT time_create_order
+ INTO v_time_create_order
+ FROM passenger_order_trip
+ WHERE id_order = p_id_order;
+ dbms_output.put_line(p_id_order||' Заказ закроется автоматически');
+ IF v_time_create_order < SYSTIMESTAMP
+    THEN
+/*Если заказ не закрылся, устанавливаем дату закрытия с даты оплаты поездки*/
+    UPDATE passenger_order_trip
+    SET status = 'canceled'
+         ,time_end = (SELECT time_create FROM payment WHERE id_order = p_id_order)
+    WHERE id_order = p_id_order;
+    COMMIT;
+    ELSE
+        NULL;
+END IF;
+WHEN rating_value
+THEN
+dbms_output.put_line('Введите значение от 1 до 5');
+WHEN OTHERS
+THEN
+ dbms_output.put_line(SQLCODE);
+ dbms_output.put_line(SQLERRM);
+END;
+/
+begin
+p_driver2pass_rtng(1360,4);
+end;
+/
