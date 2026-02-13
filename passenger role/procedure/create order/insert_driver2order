@@ -1,0 +1,134 @@
+/*Водителя назначит система*/
+CREATE OR REPLACE PROCEDURE insert_driver2order(p_id_order NUMBER
+                                                ,p_id_driver IN NUMBER
+                                                )
+IS
+CURSOR cur4driverOrder
+IS (SELECT id_driver,full_name,id_order,status,qnt_order,drv_order
+    FROM(
+        SELECT drv.id_driver,id_order,tbl2.id_driver drv_order,qnt_order,status,(last_name||' '||first_name)full_name
+        FROM driver drv
+        LEFT JOIN
+        (SELECT COUNT(id_order)qnt_order, id_driver,id_order,time_create_order,status
+        FROM passenger_order_trip
+        WHERE status = 'canceled'
+        AND time_create_order IN (SELECT max(time_create_order)FROM passenger_order_trip GROUP BY id_driver)
+        GROUP BY id_driver,time_create_order,status,id_order
+        UNION
+        SELECT COUNT(id_order), id_driver,id_order,time_create_order,status
+        FROM passenger_order_trip
+        WHERE status <> 'canceled'
+        AND time_create_order IN (SELECT max(time_create_order)FROM passenger_order_trip GROUP BY id_driver)
+        GROUP BY id_driver,time_create_order,status,id_order
+        )tbl2
+    ON drv.id_driver = tbl2.id_driver
+    WHERE (status = 'canceled' OR tbl2.id_driver IS NULL) OR status <> 'canceled'
+    )
+WHERE id_driver = p_id_driver
+GROUP BY id_driver,full_name,id_order,status,qnt_order,drv_order
+);
+v_cur_drv cur4driverOrder%ROWTYPE;
+
+CURSOR drv_order
+IS
+(SELECT id_order,id_driver, COALESCE(qnt_aqtive_order, 0)qnt_aqtive_order, COALESCE(qnt_noAqtive_order, 0)qnt_noAqtive_order
+FROM(
+SELECT id_order,id_driver,count(id_driver)qnt_aqtive_order,NULL qnt_noAqtive_order
+FROM passenger_order_trip trp
+WHERE id_order = p_id_order and status <> 'canceled'
+GROUP BY id_order,id_driver
+UNION ALL
+SELECT id_order,id_driver,NULL,COUNT(ID_DRIVER)
+FROM passenger_order_trip trp
+WHERE id_order = p_id_order and status = 'canceled'
+GROUP BY id_order,id_driver)
+);
+v_cur_drvOrders drv_order%ROWTYPE;
+v_re1sult1 VARCHAR2(355);
+v_result2 VARCHAR2(255);
+v_result3 VARCHAR2(255);
+qnt_driver_order NUMBER;
+value_exception EXCEPTION;
+PRAGMA EXCEPTION_INIT(value_exception, -06502);
+BEGIN
+
+OPEN cur4driverOrder;
+LOOP
+FETCH cur4driverOrder INTO v_cur_drv;
+EXIT WHEN cur4driverOrder%NOTFOUND;
+
+
+OPEN drv_order;
+LOOP
+FETCH drv_order INTO v_cur_drvOrders;
+EXIT WHEN drv_order%NOTFOUND;
+IF v_cur_drv.id_driver = p_id_driver
+THEN
+    IF v_cur_drvOrders.qnt_noAqtive_order = 1
+    THEN 
+        dbms_output.put_line('Номер заказа в архиве');
+        RETURN;
+        
+    ELSE
+        IF v_cur_drv.qnt_order IS NULL  --ЕСЛИ У ВОДИТЕЛЯ НЕ БЫЛО НИ ОДНОГО ЗАКАЗА
+            THEN
+            v_re1sult1 := v_cur_drv.id_driver||' '||v_cur_drv.full_name||' У данного водителя не бало ни одного заказа.Он есть в базе и его можно назначить ';
+            /*Назначаем водителя*/
+           IF v_cur_drvOrders.id_driver IS NULL
+            THEN
+                UPDATE passenger_order_trip
+                SET id_driver = p_id_driver
+                WHERE id_order = p_id_order AND status <> 'canceled';
+                COMMIT;
+            dbms_output.put_line(v_re1sult1);
+            ELSE 
+                dbms_output.put_line('По заказу: '||p_id_order||' Уже назначен водитель: '||' '||v_cur_drvOrders.id_driver);
+                RETURN;              
+            END IF;
+        ELSIF v_cur_drv.qnt_order >= 1 
+                AND v_cur_drv.status = 'canceled'
+            THEN           
+            v_result2 := v_cur_drv.id_driver||' '||v_cur_drv.full_name||' Нет активных заказов. Можно назначать';
+                    
+            IF v_cur_drvOrders.id_driver IS NULL
+            THEN
+                 /*Назначаем водителя*/
+                UPDATE passenger_order_trip
+                SET id_driver = p_id_driver
+                WHERE id_order = p_id_order AND status <> 'canceled';
+                COMMIT;
+            dbms_output.put_line(v_result2);
+            ELSE 
+                dbms_output.put_line('По заказу: '||p_id_order||' Уже назначен водитель'||' '||v_cur_drvOrders.id_driver);
+            END IF;
+        ELSIF v_cur_drv.qnt_order >= 1 
+                AND v_cur_drv.status <> 'canceled'
+            THEN 
+             v_result3 := v_cur_drv.id_driver||' '||v_cur_drv.full_name||' Нельзя назначить заказ пока водитель не завершил текущий'||' '||v_cur_drv.id_order;
+            dbms_output.put_line(v_result3);
+        ELSE 
+          dbms_output.put_line('Номер заказа в архиве');  
+            RETURN;
+        END IF; 
+END IF;
+END IF;
+END LOOP;
+CLOSE drv_order;
+END LOOP;
+CLOSE cur4driverOrder;
+EXCEPTION
+WHEN NO_DATA_FOUND
+    THEN dbms_output.put_line('Ошибка: '||'Данные не найдены.'||' '||CHR(10)||'Заказ в архиве либо не существует');
+WHEN value_exception
+    THEN RAISE_APPLICATION_ERROR(-20001, 'Недостаточно выделена память для символьных записей');
+WHEN OTHERS THEN
+    dbms_output.put_line('Ошибка: '||' '||chr(10)||' '||SQLERRM);
+    dbms_output.put_line('Номер ошибки: '||' '||chr(10)||' '||SQLCODE);
+END;
+/
+BEGIN
+insert_driver2order(820,50);
+EXCEPTION
+WHEN NO_DATA_FOUND
+    THEN dbms_output.put_line('Ошибка: '||'Данные не найдены.'||' '||CHR(10)||'Заказ в архиве либо не существует');
+END;
