@@ -1,0 +1,43 @@
+CREATE OR REPLACE PROCEDURE update_rating_pass(p_day IN NUMBER)
+IS
+CURSOR search_pass
+IS(
+    SELECT DISTINCT id_pass
+    FROM raiting_driver2pass
+);
+v_sum_rating NUMBER;
+v_row_cnt NUMBER;
+BEGIN
+FOR rec IN search_pass
+LOOP
+SELECT avg(rating)
+INTO v_sum_rating
+FROM raiting_driver2pass
+WHERE TRUNC(time_create) >= (select (TRUNC(SYSDATE) - p_day)days_period from dual)
+    and id_pass  = rec.id_pass
+GROUP BY id_driver,id_pass;
+
+UPDATE passenger_rating
+SET rating = v_sum_rating
+WHERE id_passenger  = rec.id_pass;
+
+EXIT WHEN search_pass%NOTFOUND;
+dbms_output.put_line('Пасажир: '||rec.id_pass||' Средний рейтинг: '||v_sum_rating||' За период: '||p_day||' дней');
+END LOOP;
+
+EXCEPTION
+WHEN DUP_VAL_ON_INDEX 
+THEN
+ dbms_output.put_line(SQLCODE);
+WHEN NO_DATA_FOUND
+THEN
+ dbms_output.put_line(SQLCODE);
+WHEN OTHERS
+THEN
+ dbms_output.put_line(SQLCODE);
+ dbms_output.put_line(SQLERRM);
+END;
+/
+begin
+update_rating_pass(8);
+end;
