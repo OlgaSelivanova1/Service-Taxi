@@ -1,0 +1,32 @@
+create or replace function driver_for_apex(p_FULL_NAME IN VARCHAR2)
+return number
+IS
+v_id_driver NUMBER;
+CURSOR C1 IS
+(
+SELECT id_driver, FULL_NAME
+FROM
+(SELECT id_driver
+    ,(FIRST_NAME||' '||LAST_NAME) FULL_NAME
+FROM driver
+WHERE id_driver NOT IN (
+SELECT ID_DRIVER
+  FROM RENT_CAR
+  WHERE ID_CAR IN 
+   (SELECT ID_CAR
+    FROM CAR 
+    WHERE IS_RESERVED<>'Yes'
+    )AND DATE_STOP IS NULL
+  )   
+)
+WHERE FULL_NAME = p_FULL_NAME
+);
+BEGIN
+FOR R IN C1
+LOOP
+v_id_driver := R.id_driver;
+DBMS_OUTPUT.PUT_LINE(R.id_driver||' '||R.FULL_NAME);
+END LOOP;
+PCK_DRIVER_ID := v_id_driver;
+RETURN v_id_driver;
+END;
