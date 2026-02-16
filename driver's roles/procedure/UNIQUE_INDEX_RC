@@ -1,0 +1,9 @@
+CREATE UNIQUE INDEX
+rent_car_uniq_active
+ON rent_car
+    (CASE WHEN date_stop is null THEN id_car END);
+/
+CREATE UNIQUE INDEX
+rent_drv_uniq_active
+ON rent_car
+    (CASE WHEN date_stop is null THEN id_driver END);
