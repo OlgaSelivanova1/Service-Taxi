@@ -1,0 +1,138 @@
+create or replace package PKG_FOR_APEX_2
+is
+function driver_for_apex(p_FULL_NAME IN VARCHAR2)
+return number;
+PROCEDURE  p_rent_car_RELISE3(p_driverID in number, p_carID in number);
+PCK_DRIVER_ID number;
+end PKG_FOR_APEX_2;
+/
+create or replace package body PKG_FOR_APEX_2
+is
+function driver_for_apex(p_FULL_NAME IN VARCHAR2)
+return number
+IS
+v_id_driver NUMBER;
+CURSOR C1 IS
+(
+SELECT id_driver, FULL_NAME
+FROM
+(SELECT id_driver
+    ,(FIRST_NAME||' '||LAST_NAME) FULL_NAME
+FROM driver
+WHERE id_driver NOT IN (
+SELECT ID_DRIVER
+  FROM RENT_CAR
+  WHERE ID_CAR IN 
+   (SELECT ID_CAR
+    FROM CAR 
+    WHERE IS_RESERVED<>'Yes'
+    )AND DATE_STOP IS NULL
+  )   
+)
+WHERE FULL_NAME = p_FULL_NAME
+);
+BEGIN
+FOR R IN C1
+LOOP
+v_id_driver := R.id_driver;
+DBMS_OUTPUT.PUT_LINE(R.id_driver||' '||R.FULL_NAME);
+END LOOP;
+PCK_DRIVER_ID := v_id_driver;
+RETURN v_id_driver;
+END;
+PROCEDURE  p_rent_car_RELISE3(p_driverID in number, p_carID in number)
+IS
+CURSOR search_driver_car
+IS 
+(select count(*)qnt_aqtvty_rent
+from rent_car
+where id_driver = (SELECT ID_DRIVER FROM DRIVER WHERE ID_DRIVER = p_driverID)
+and date_stop IS NULL
+AND id_car =(SELECT ID_CAR
+                FROM CAR 
+                 WHERE IS_RESERVED = 'Yes'
+                    AND ID_CAR = p_carID)
+);
+v_4_cursor search_driver_car%rowtype; 
+v_start_date DATE:= sysdate;
+v_status_upd car.is_reserved%type:='Yes';
+count_drv_isrsrv NUMBER;
+
+CURSOR DONT_RESRVED_ISCAR
+IS
+(select id_car from rent_car
+where date_stop is null
+and id_car = p_carID);
+V_CUR2 DONT_RESRVED_ISCAR%ROWTYPE;
+
+BEGIN
+OPEN search_driver_car;
+LOOP
+FETCH search_driver_car INTO v_4_cursor;
+EXIT WHEN search_driver_car%NOTFOUND;
+OPEN DONT_RESRVED_ISCAR;
+     LOOP
+     FETCH DONT_RESRVED_ISCAR INTO V_CUR2;
+     EXIT WHEN DONT_RESRVED_ISCAR%NOTFOUND;     
+     END LOOP;
+END LOOP;
+IF v_4_cursor.qnt_aqtvty_rent = 0
+THEN
+    DBMS_OUTPUT.PUT_LINE('Нет активных заказов. Бронирование разрешено');    
+      IF V_CUR2.id_car = p_carID
+      THEN
+         RAISE_APPLICATION_ERROR(-20001, 'Машина занята другим водителем');
+      END IF;
+    INSERT INTO rent_car(id_driver,id_car,date_start)
+     VALUES(p_driverID,p_carID,v_start_date);
+     /*Меняем статус брони на занятую*/
+    UPDATE car
+    SET is_reserved = 'Yes'
+    WHERE id_car = p_carID;
+    COMMIT;
+DBMS_OUTPUT.PUT_LINE('Водитель № '||''||p_driverID||' Поздравляем с успешным бронированием автомобиля!'||' '||p_carID);
+ELSIF v_4_cursor.qnt_aqtvty_rent >= 1
+THEN 
+    DBMS_OUTPUT.PUT_LINE('У вас уже имеется бронь:'||' '||v_4_cursor.qnt_aqtvty_rent||' От даты:'||v_start_date);
+    DBMS_OUTPUT.PUT_LINE('Чтобы забронировать новую машину, пожалуйста, пройдите процедуру снятия с брони');
+    /*DELETE FROM rent_car
+    WHERE id_driver = p_driverID
+    and date_stop is null
+    and time_create <> 
+    (select min(time_create) from rent_car where id_driver = p_driverID);*/
+    ROLLBACK;
+ELSE   
+    NULL;
+END IF;
+CLOSE DONT_RESRVED_ISCAR;
+CLOSE search_driver_car;
+
+/*Раздел исключений*/
+EXCEPTION
+WHEN NO_DATA_FOUND THEN
+DBMS_OUTPUT.PUT_LINE('Проверьте вводимые значения');
+WHEN TOO_MANY_ROWS
+THEN
+DBMS_OUTPUT.PUT_LINE('За водителем уже числится машина');
+WHEN OTHERS 
+THEN
+DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;
+end PKG_FOR_APEX_2;
+/
+DECLARE
+v_ID NUMBER;
+BEGIN
+v_ID := PKG_FOR_APEX_2.driver_for_apex('Бако Матевосян');
+PKG_FOR_APEX_2.p_rent_car_RELISE3(v_ID,83);
+END;
+/
+begin
+PKG_FOR_APEX_2.p_rent_car_RELISE2(51,8);
+END;
+/
+DECLARE
+v_ID NUMBER;
+BEGIN
+v_ID := PKG_FOR_APEX_2.driver_for_apex('Бако Матевосян');
+END;
